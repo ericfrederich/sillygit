@@ -1,27 +1,30 @@
 #!/usr/bin/env python3
 # PYTHON_ARGCOMPLETE_OK
-__author__ = 'Eric L. Frederich'
+__author__ = "Eric L. Frederich"
 
-from subprocess import Popen, PIPE
 import argparse
-import time
 import hashlib
 import itertools
-from datetime import datetime
 import multiprocessing
 import queue
+import time
+from datetime import datetime
+from subprocess import PIPE, Popen
+
 try:
     import argcomplete
-    HAS_ARGCOMPLETE=True
+
+    HAS_ARGCOMPLETE = True
 except ImportError:
-    HAS_ARGCOMPLETE=False
+    HAS_ARGCOMPLETE = False
+
 
 def finder(results_queue, stats_queue, stop_queue, start_time, start_lines, step, template, start, hsh):
     commit_time = start_time
     found = False
     tries = 0
     before = datetime.now()
-    content = template % {'TIME': commit_time}
+    content = template % {"TIME": commit_time}
 
     # print('trying with time', commit_time)
 
@@ -35,14 +38,14 @@ def finder(results_queue, stats_queue, stop_queue, start_time, start_lines, step
             except queue.Empty:
                 pass
             else:
-                print('got the stop signal')
+                print("got the stop signal")
                 stats_queue.put(tries)
 
         # if tries % 10000 == 0:
         #     print tries, 'tries', '(%d%%)' % int(100.0 * tries / 16**len(hsh))
 
         # calculate sha
-        header = 'commit %d\0' % len(content + padding)
+        header = "commit %d\0" % len(content + padding)
         store = header + content + padding
         h = hashlib.sha1()
         h.update(store.encode("utf-8"))
@@ -55,8 +58,9 @@ def finder(results_queue, stats_queue, stop_queue, start_time, start_lines, step
 
     after = datetime.now()
 
-    results_queue.put(( after - before, sha, store, commit_time, content + padding ))
+    results_queue.put((after - before, sha, store, commit_time, content + padding))
     stats_queue.put(tries)
+
 
 class RunCommandError(Exception):
     def __init__(self, cmd, out, err, ret):
@@ -64,6 +68,7 @@ class RunCommandError(Exception):
         self.out = out
         self.err = err
         self.ret = ret
+
 
 def run_command(cmd, stdin=None, allowed_exit_codes=[0]):
     """
@@ -75,71 +80,73 @@ def run_command(cmd, stdin=None, allowed_exit_codes=[0]):
         p.stdin.write(stdin.encode())
     else:
         p = Popen(cmd, stdout=PIPE, stderr=PIPE)
-    
+
     print("?" * 80)
 
     out, err = p.communicate()
     ret = p.wait()
     if allowed_exit_codes is not None and ret not in allowed_exit_codes:
-        print('--- return code:', ret)
+        print("--- return code:", ret)
         for line in out.splitlines():
-            print('--- out:', line)
+            print("--- out:", line)
         for line in err.splitlines():
-            print('--- err:', line)
+            print("--- err:", line)
         raise RunCommandError(cmd, out, err, ret)
     return out.decode()
 
+
 def white_noise_generator(start, step, width=80):
     for n_padding_lines in itertools.count(start, step):
-        print(start, 'is now using', n_padding_lines, 'lines')
+        print(start, "is now using", n_padding_lines, "lines")
         for padding in itertools.product(*[range(width) for _ in range(n_padding_lines)]):
-            ret = ''
+            ret = ""
             for n in padding:
-                ret += '\n' + (' ' * n)
-            ret += '\n'
+                ret += "\n" + (" " * n)
+            ret += "\n"
             yield ret
 
-def commit(git_dir, add, hsh, msg, n_procs, start_time, amend, start):
-    print('creating commit for')
-    print('  ', git_dir)
-    print('  ', hsh)
-    print('  ', msg)
 
-    git_cmd = ['git']
+def commit(git_dir, add, hsh, msg, n_procs, start_time, amend, start):
+    print("creating commit for")
+    print("  ", git_dir)
+    print("  ", hsh)
+    print("  ", msg)
+
+    git_cmd = ["git"]
     if git_dir is not None:
-        git_cmd.extend(['--git-dir', git_dir])
+        git_cmd.extend(["--git-dir", git_dir])
 
     # gather username and email
-    username = run_command(git_cmd + ['config', 'user.name']).rstrip()
-    email    = run_command(git_cmd + ['config', 'user.email']).rstrip()
+    username = run_command(git_cmd + ["config", "user.name"]).rstrip()
+    email = run_command(git_cmd + ["config", "user.email"]).rstrip()
 
     if add:
-        run_command(git_cmd + ['add', '.'])
+        run_command(git_cmd + ["add", "."])
 
-    tree_hash   = run_command(git_cmd + ['write-tree']).rstrip()
+    tree_hash = run_command(git_cmd + ["write-tree"]).rstrip()
     # TODO: could we support amend by parsing 'HEAD^' instead of 'HEAD'?
     try:
         if amend:
-            parent_hash = run_command(git_cmd + ['rev-parse', 'HEAD^']).strip()
+            parent_hash = run_command(git_cmd + ["rev-parse", "HEAD^"]).strip()
         else:
-            parent_hash = run_command(git_cmd + ['rev-parse', 'HEAD']).strip()
+            parent_hash = run_command(git_cmd + ["rev-parse", "HEAD"]).strip()
     except RunCommandError as rce:
         parent_hash = None
 
-    print(f'username    {username}')
-    print(f'email       {email}')
-    print(f'tree hash   {tree_hash}')
-    print(f'parent hash {parent_hash}')
+    print(f"username    {username}")
+    print(f"email       {email}")
+    print(f"tree hash   {tree_hash}")
+    print(f"parent hash {parent_hash}")
 
     # a partially applied template; leave %(TIME)s in there.
-    template = ''
-    template += 'tree %s\n' % tree_hash
+    template = ""
+    template += "tree %s\n" % tree_hash
     if parent_hash is not None:
-        template += 'parent %s\n' % parent_hash
-    template += 'author %s <%s> %s -0600\n' % (username, email, '%(TIME)s')
-    template += 'committer %s <%s> %s -0600\n' % (username, email, '%(TIME)s')
-    template += '\n'
-    template += '%s\n' % msg
+        template += "parent %s\n" % parent_hash
+    template += "author %s <%s> %s -0600\n" % (username, email, "%(TIME)s")
+    template += "committer %s <%s> %s -0600\n" % (username, email, "%(TIME)s")
+    template += "\n"
+    template += "%s\n" % msg
 
     # create some queues for communication
     results_queue = multiprocessing.Queue()
@@ -149,7 +156,9 @@ def commit(git_dir, add, hsh, msg, n_procs, start_time, amend, start):
     # create all the processes using an offset for the start time so they're unique
     procs = []
     for i in range(n_procs):
-        proc = multiprocessing.Process(target=finder, args=(results_queue, stats_queue, stop_queue, start_time, i, n_procs, template, start, hsh))
+        proc = multiprocessing.Process(
+            target=finder, args=(results_queue, stats_queue, stop_queue, start_time, i, n_procs, template, start, hsh)
+        )
         procs.append(proc)
 
     # start all processes
@@ -173,33 +182,34 @@ def commit(git_dir, add, hsh, msg, n_procs, start_time, amend, start):
     for proc in procs:
         proc.terminate()
 
-    print('*' * 80)
+    print("*" * 80)
     print(sha)
     print(repr(store))
-    print('*' * 80)
-    print('elapsed:', runtime)
-    print('tries  :', tries)
-    print('%r tries per second' % (tries / runtime.total_seconds()))
-    print('had to increment commit time by', commit_time - start_time, 'seconds')
+    print("*" * 80)
+    print("elapsed:", runtime)
+    print("tries  :", tries)
+    print("%r tries per second" % (tries / runtime.total_seconds()))
+    print("had to increment commit time by", commit_time - start_time, "seconds")
 
-    commit_hash = run_command(git_cmd + ['hash-object', '-t', 'commit', '-w', '--stdin'], stdin=content).strip()
+    commit_hash = run_command(git_cmd + ["hash-object", "-t", "commit", "-w", "--stdin"], stdin=content).strip()
     if commit_hash == sha:
-        print('WOO HOO')
+        print("WOO HOO")
     else:
-        raise RuntimeError('unexpected hash')
+        raise RuntimeError("unexpected hash")
 
-    run_command(git_cmd + ['update-ref', 'HEAD', sha])
+    run_command(git_cmd + ["update-ref", "HEAD", sha])
+
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--add', '-a', action='store_true')
-    parser.add_argument('--amend', action='store_true')
-    parser.add_argument('--message', '-m', required=True)
-    parser.add_argument('--git-dir')
-    parser.add_argument('--start', action='store_true')
-    parser.add_argument('--parallel', type=int, default=1)
-    parser.add_argument('--time', type=int, default=407891580)
-    parser.add_argument('hash')
+    parser.add_argument("--add", "-a", action="store_true")
+    parser.add_argument("--amend", action="store_true")
+    parser.add_argument("--message", "-m", required=True)
+    parser.add_argument("--git-dir")
+    parser.add_argument("--start", action="store_true")
+    parser.add_argument("--parallel", type=int, default=1)
+    parser.add_argument("--time", type=int, default=407891580)
+    parser.add_argument("hash")
     if HAS_ARGCOMPLETE:
         argcomplete.autocomplete(parser)
     args = parser.parse_args()
@@ -208,8 +218,9 @@ def main():
     try:
         int(args.hash, 16)
     except ValueError:
-        raise ValueError('Invalid hex for hash')
+        raise ValueError("Invalid hex for hash")
     commit(args.git_dir, args.add, args.hash.lower(), args.message, args.parallel, args.time, args.amend, args.start)
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     main()
