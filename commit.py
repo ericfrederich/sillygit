@@ -71,10 +71,10 @@ def run_command(cmd, stdin=None, allowed_exit_codes=[0]):
     returns stdout
     """
     if stdin:
-        p = Popen(cmd, stdout=PIPE, stderr=PIPE, stdin=PIPE, text=True)
-        p.stdin.write(stdin)
+        p = Popen(cmd, stdout=PIPE, stderr=PIPE, stdin=PIPE)
+        p.stdin.write(stdin.encode())
     else:
-        p = Popen(cmd, stdout=PIPE, stderr=PIPE, text=True)
+        p = Popen(cmd, stdout=PIPE, stderr=PIPE)
     
     print("?" * 80)
 
@@ -87,7 +87,7 @@ def run_command(cmd, stdin=None, allowed_exit_codes=[0]):
         for line in err.splitlines():
             print('--- err:', line)
         raise RunCommandError(cmd, out, err, ret)
-    return out
+    return out.decode()
 
 def white_noise_generator(start, step, width=80):
     for n_padding_lines in itertools.count(start, step):
