@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 __author__ = 'Eric L. Frederich'
 
 from subprocess import Popen, PIPE
@@ -38,7 +40,7 @@ def white_noise_generator(length=4, width=80):
             ret += '\n'
             yield ret
 
-def commit(git_dir, hsh, msg):
+def commit(git_dir, add, hsh, msg):
     print 'creating commit for'
     print '  ', git_dir
     print '  ', hsh
@@ -48,8 +50,12 @@ def commit(git_dir, hsh, msg):
     if git_dir is not None:
         git_cmd.extend(['--git-dir', git_dir])
 
-    username    = run_command(git_cmd + ['config', 'user.name']).rstrip()
-    email       = run_command(git_cmd + ['config', 'user.email']).rstrip()
+    username = run_command(git_cmd + ['config', 'user.name']).rstrip()
+    email    = run_command(git_cmd + ['config', 'user.email']).rstrip()
+
+    if add:
+        run_command(git_cmd + ['add', '.'])
+
     tree_hash   = run_command(git_cmd + ['write-tree']).rstrip()
     # TODO: could we support amend by parsing 'HEAD^' instead of 'HEAD'?
     parent_hash = run_command(git_cmd + ['rev-parse', 'HEAD']).strip()
@@ -126,13 +132,14 @@ committer %(USERNAME)s <%(EMAIL)s> %(TIME)s -0400
 
 def main():
     parser = argparse.ArgumentParser()
+    parser.add_argument('--add', '-a', action='store_true')
     parser.add_argument('--message', '-m')
     parser.add_argument('--git-dir')
     parser.add_argument('hash')
     args = parser.parse_args()
     # if len(args.hash) > 4:
     #     raise ValueError('hash too big, only 4 supported')
-    commit(args.git_dir, args.hash, args.message)
+    commit(args.git_dir, args.add, args.hash, args.message)
 
 if __name__ == '__main__':
     main()
