@@ -5,6 +5,7 @@ import argparse
 import time
 import hashlib
 import itertools
+from datetime import datetime
 
 def run_command(cmd, stdin=None, allowed_exit_codes=[0]):
     """
@@ -60,6 +61,7 @@ committer Eric L Frederich <eric.frederich@gmail.com> %(TIME)s -0400
     time_delta = -1
     found = False
     tries = 0
+    before = datetime.now()
     while not found:
         time_delta += 1
         for n_padding_lines in range(5):
@@ -87,11 +89,15 @@ committer Eric L Frederich <eric.frederich@gmail.com> %(TIME)s -0400
                 break
 
 
-    print 'after', tries, 'tries'
-    print 'had to increment time by', time_delta, 'seconds or', time_delta / 60.0, 'minutes'
-    print 'sha...', sha
+    after = datetime.now()
+    print '*' * 80
+    print sha
     print repr(store)
-    print repr(content)
+    print '*' * 80
+    print 'elapsed:', after - before
+    print 'tries  :', tries
+    print '%r tries per second' % (tries / (after - before).total_seconds())
+    print 'had to increment commit time by', time_delta, 'seconds'
 
     out, err, ret = run_command(['git', '--git-dir', git_dir, 'hash-object', '-t', 'commit', '-w', '--stdin'], stdin=content)
     commit_hash = out.strip()
