@@ -62,26 +62,30 @@ committer Eric L Frederich <eric.frederich@gmail.com> %(TIME)s -0400
     tries = 0
     while not found:
         time_delta += 1
-        for padding in itertools.product(range(80), range(80), range(80)):
-            tries += 1
-            if tries % 100000 == 0:
-                print tries, 'tries'
-            content = TEMPLATE % {'TIME': start + time_delta}
+        for n_padding_lines in range(5):
+            for padding in itertools.product(*[range(80) for _ in range(n_padding_lines)]):
+                tries += 1
+                if tries % 100000 == 0:
+                    print tries, 'tries'
+                content = TEMPLATE % {'TIME': start + time_delta}
 
-            for n in padding:
-                content += '\n' + (' ' * n)
+                for n in padding:
+                    content += '\n' + (' ' * n)
 
-            content += '\n'
+                content += '\n'
 
-            header = 'commit %d\0' % len(content)
-            store = header + content
-            h = hashlib.sha1()
-            h.update(store)
-            sha = h.hexdigest()
-            # print 'would be', sha
-            if sha.endswith(hsh):
-                found = True
+                header = 'commit %d\0' % len(content)
+                store = header + content
+                h = hashlib.sha1()
+                h.update(store)
+                sha = h.hexdigest()
+                # print 'would be', sha
+                if sha.endswith(hsh):
+                    found = True
+                    break
+            if found:
                 break
+
 
     print 'after', tries, 'tries'
     print 'had to increment time by', time_delta, 'seconds or', time_delta / 60.0, 'minutes'
