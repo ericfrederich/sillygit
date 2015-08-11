@@ -99,6 +99,7 @@ def commit(git_dir, add, hsh, msg, n_procs):
     if git_dir is not None:
         git_cmd.extend(['--git-dir', git_dir])
 
+    # gather username and email
     username = run_command(git_cmd + ['config', 'user.name']).rstrip()
     email    = run_command(git_cmd + ['config', 'user.email']).rstrip()
 
@@ -114,6 +115,7 @@ def commit(git_dir, add, hsh, msg, n_procs):
     print 'tree hash  ', tree_hash
     print 'parent hash', parent_hash
 
+    # a partially applied template; leave %(TIME)s in there.
     template = '''\
 tree %(TREE)s
 parent %(PARENT)s
