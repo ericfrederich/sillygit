@@ -12,7 +12,7 @@ import multiprocessing
 import Queue
 
 def finder(results_queue, stats_queue, stop_queue, start_time, time_delta, template, hsh):
-    new_time = start_time - time_delta
+    commit_time = start_time - time_delta
     found = False
     tries = 0
     before = datetime.now()
@@ -20,10 +20,10 @@ def finder(results_queue, stats_queue, stop_queue, start_time, time_delta, templ
         # drift time as needed
         # though this shouldn't happen too often since
         # the inner loop generates 41,478,481 tries
-        new_time += time_delta
-        content = template % {'TIME': new_time}
+        commit_time += time_delta
+        content = template % {'TIME': commit_time}
 
-        print 'trying with time', new_time
+        print 'trying with time', commit_time
 
         for padding in white_noise_generator():
             # keep track of and print tries
@@ -55,7 +55,7 @@ def finder(results_queue, stats_queue, stop_queue, start_time, time_delta, templ
 
     after = datetime.now()
 
-    results_queue.put(( before, after, sha, store, new_time, content, padding ))
+    results_queue.put(( after - before, sha, store, commit_time, content + padding ))
     stats_queue.put(tries)
 
 def run_command(cmd, stdin=None, allowed_exit_codes=[0]):
@@ -148,7 +148,7 @@ committer %(USERNAME)s <%(EMAIL)s> %(TIME)s -0400
         proc.start()
 
     # first thing back on the results queue will alaways be the result
-    before, after, sha, store, new_time, content, padding = results_queue.get()
+    runtime, sha, store, commit_time, content = results_queue.get()
 
     # signal all the other processes that we're done
     for i in range(n_procs):
@@ -168,12 +168,12 @@ committer %(USERNAME)s <%(EMAIL)s> %(TIME)s -0400
     print sha
     print repr(store)
     print '*' * 80
-    print 'elapsed:', after - before
+    print 'elapsed:', runtime
     print 'tries  :', tries
-    print '%r tries per second' % (tries / (after - before).total_seconds())
-    print 'had to increment commit time by', new_time - start_time, 'seconds'
+    print '%r tries per second' % (tries / runtime.total_seconds())
+    print 'had to increment commit time by', commit_time - start_time, 'seconds'
 
-    commit_hash = run_command(git_cmd + ['hash-object', '-t', 'commit', '-w', '--stdin'], stdin=content + padding).strip()
+    commit_hash = run_command(git_cmd + ['hash-object', '-t', 'commit', '-w', '--stdin'], stdin=content).strip()
     if commit_hash == sha:
         print 'WOO HOO'
     else:
