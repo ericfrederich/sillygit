@@ -11,7 +11,7 @@ from datetime import datetime
 import multiprocessing
 import Queue
 
-def finder(stop_queue, results_queue, start_time, time_delta, template, hsh):
+def finder(results_queue, stats_queue, stop_queue, start_time, time_delta, template, hsh):
     new_time = start_time - time_delta
     found = False
     tries = 0
@@ -36,7 +36,7 @@ def finder(stop_queue, results_queue, start_time, time_delta, template, hsh):
                     pass
                 else:
                     print 'got the stop signal'
-                    results_queue.put(tries)
+                    stats_queue.put(tries)
 
             # if tries % 10000 == 0:
             #     print tries, 'tries', '(%d%%)' % int(100.0 * tries / 16**len(hsh))
@@ -55,7 +55,8 @@ def finder(stop_queue, results_queue, start_time, time_delta, template, hsh):
 
     after = datetime.now()
 
-    results_queue.put(( before, after, sha, store, tries, new_time, content, padding ))
+    results_queue.put(( before, after, sha, store, new_time, content, padding ))
+    stats_queue.put(tries)
 
 def run_command(cmd, stdin=None, allowed_exit_codes=[0]):
     """
@@ -133,12 +134,13 @@ committer %(USERNAME)s <%(EMAIL)s> %(TIME)s -0400
 
     # create some queues for communication
     results_queue = multiprocessing.Queue()
+    stats_queue = multiprocessing.Queue()
     stop_queue = multiprocessing.Queue()
 
     # create all the processes using an offset for the start time so they're unique
     procs = []
     for i in range(n_procs):
-        proc = multiprocessing.Process(target=finder, args=(stop_queue, results_queue, start_time + i, n_procs, template, hsh))
+        proc = multiprocessing.Process(target=finder, args=(results_queue, stats_queue, stop_queue, start_time + i, n_procs, template, hsh))
         procs.append(proc)
 
     # start all processes
@@ -146,7 +148,7 @@ committer %(USERNAME)s <%(EMAIL)s> %(TIME)s -0400
         proc.start()
 
     # first thing back on the results queue will alaways be the result
-    before, after, sha, store, tries, new_time, content, padding = results_queue.get()
+    before, after, sha, store, new_time, content, padding = results_queue.get()
 
     # signal all the other processes that we're done
     for i in range(n_procs):
@@ -154,8 +156,9 @@ committer %(USERNAME)s <%(EMAIL)s> %(TIME)s -0400
 
     # now everything on the results queue is just the number of tries from each process
     # do a blocking call because we know how many processes there were
-    for i in range(n_procs - 1):
-        tries += results_queue.get()
+    tries = 0
+    for i in range(n_procs):
+        tries += stats_queue.get()
 
     # kill all the processes though they should be done already
     for proc in procs:
@@ -188,7 +191,11 @@ def main():
     args = parser.parse_args()
     # if len(args.hash) > 4:
     #     raise ValueError('hash too big, only 4 supported')
-    commit(args.git_dir, args.add, args.hash, args.message, args.parallel)
+    try:
+        int(args.hash, 16)
+    except ValueError:
+        raise ValueError('Invalid hex for hash')
+    commit(args.git_dir, args.add, args.hash.lower(), args.message, args.parallel)
 
 if __name__ == '__main__':
     main()
