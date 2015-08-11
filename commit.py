@@ -44,11 +44,16 @@ def commit(git_dir, hsh, msg):
     print '  ', hsh
     print '  ', msg
 
-    out, err, ret = run_command(['git', '--git-dir', git_dir, 'write-tree'])
+    if git_dir is not None:
+        git_dir_cmd = ['--git-dir', git_dir]
+    else:
+        git_dir_cmd = []
+
+    out, err, ret = run_command(['git'] + git_dir_cmd + ['write-tree'])
     tree_hash = out.strip()
     print 'commit hash is', tree_hash
 
-    out, err, ret = run_command(['git', '--git-dir', git_dir, 'rev-parse', 'HEAD'])
+    out, err, ret = run_command(['git'] + git_dir_cmd + ['rev-parse', 'HEAD'])
     parent_hash = out.strip()
     print 'parent hash is', parent_hash
 
@@ -107,14 +112,14 @@ committer Eric L Frederich <eric.frederich@gmail.com> %(TIME)s -0400
     print '%r tries per second' % (tries / (after - before).total_seconds())
     print 'had to increment commit time by', time_delta, 'seconds'
 
-    out, err, ret = run_command(['git', '--git-dir', git_dir, 'hash-object', '-t', 'commit', '-w', '--stdin'], stdin=content + padding)
+    out, err, ret = run_command(['git'] + git_dir_cmd + ['hash-object', '-t', 'commit', '-w', '--stdin'], stdin=content + padding)
     commit_hash = out.strip()
     if commit_hash == sha:
         print 'WOO HOO'
     else:
         raise RuntimeError('unexpected hash')
 
-    run_command(['git', '--git-dir', git_dir, 'update-ref', 'HEAD', sha])
+    run_command(['git'] + git_dir_cmd + ['update-ref', 'HEAD', sha])
 
 def main():
     parser = argparse.ArgumentParser()
