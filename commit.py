@@ -44,24 +44,30 @@ def commit(git_dir, hsh, msg):
     print '  ', hsh
     print '  ', msg
 
+    git_cmd = ['git']
     if git_dir is not None:
-        git_dir_cmd = ['--git-dir', git_dir]
-    else:
-        git_dir_cmd = []
+        git_cmd.extend(['--git-dir', git_dir])
 
-    out, err, ret = run_command(['git'] + git_dir_cmd + ['write-tree'])
+    out, err, ret = run_command(git_cmd + ['config', 'user.name'])
+    username = out.strip()
+
+    out, err, ret = run_command(git_cmd + ['config', 'user.email'])
+    email = out.strip()
+
+    out, err, ret = run_command(git_cmd + ['write-tree'])
     tree_hash = out.strip()
     print 'commit hash is', tree_hash
 
-    out, err, ret = run_command(['git'] + git_dir_cmd + ['rev-parse', 'HEAD'])
+    # TODO: could we support amend by parsing 'HEAD^' istead of 'HEAD'?
+    out, err, ret = run_command(git_cmd + ['rev-parse', 'HEAD'])
     parent_hash = out.strip()
     print 'parent hash is', parent_hash
 
     TEMPLATE='''\
 tree %(TREE)s
 parent %(PARENT)s
-author Eric L Frederich <eric.frederich@gmail.com> %(TIME)s -0400
-committer Eric L Frederich <eric.frederich@gmail.com> %(TIME)s -0400
+author %(USERNAME)s <%(EMAIL)s> %(TIME)s -0400
+committer %(USERNAME)s <%(EMAIL)s> %(TIME)s -0400
 
 %(MESSAGE)s
 ''' % {
@@ -69,6 +75,8 @@ committer Eric L Frederich <eric.frederich@gmail.com> %(TIME)s -0400
         'TIME': '%(TIME)s',
         'MESSAGE': msg,
         'PARENT': parent_hash,
+        'USERNAME': username,
+        'EMAIL': email,
     }
 
     start = int(time.time())
@@ -112,14 +120,14 @@ committer Eric L Frederich <eric.frederich@gmail.com> %(TIME)s -0400
     print '%r tries per second' % (tries / (after - before).total_seconds())
     print 'had to increment commit time by', time_delta, 'seconds'
 
-    out, err, ret = run_command(['git'] + git_dir_cmd + ['hash-object', '-t', 'commit', '-w', '--stdin'], stdin=content + padding)
+    out, err, ret = run_command(git_cmd + ['hash-object', '-t', 'commit', '-w', '--stdin'], stdin=content + padding)
     commit_hash = out.strip()
     if commit_hash == sha:
         print 'WOO HOO'
     else:
         raise RuntimeError('unexpected hash')
 
-    run_command(['git'] + git_dir_cmd + ['update-ref', 'HEAD', sha])
+    run_command(git_cmd + ['update-ref', 'HEAD', sha])
 
 def main():
     parser = argparse.ArgumentParser()
