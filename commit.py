@@ -58,6 +58,13 @@ def finder(results_queue, stats_queue, stop_queue, start_time, time_delta, templ
     results_queue.put(( after - before, sha, store, commit_time, content + padding ))
     stats_queue.put(tries)
 
+class RunCommandError(Exception):
+    def __init__(self, cmd, out, err, ret):
+        self.cmd = cmd
+        self.out = out
+        self.err = err
+        self.ret = ret
+
 def run_command(cmd, stdin=None, allowed_exit_codes=[0]):
     """
     wrapper around subprocess.Popen
@@ -77,7 +84,7 @@ def run_command(cmd, stdin=None, allowed_exit_codes=[0]):
             print '--- out:', line
         for line in err.splitlines():
             print '--- err:', line
-        raise RuntimeError('Error running command %r' % cmd)
+        raise RunCommandError(cmd, out, err, ret)
     return out
 
 def white_noise_generator(length=4, width=80):
@@ -108,7 +115,10 @@ def commit(git_dir, add, hsh, msg, n_procs):
 
     tree_hash   = run_command(git_cmd + ['write-tree']).rstrip()
     # TODO: could we support amend by parsing 'HEAD^' instead of 'HEAD'?
-    parent_hash = run_command(git_cmd + ['rev-parse', 'HEAD']).strip()
+    try:
+        parent_hash = run_command(git_cmd + ['rev-parse', 'HEAD']).strip()
+    except RunCommandError as rce:
+        parent_hash = None
 
     print 'username   ', username
     print 'email      ', email
@@ -116,21 +126,14 @@ def commit(git_dir, add, hsh, msg, n_procs):
     print 'parent hash', parent_hash
 
     # a partially applied template; leave %(TIME)s in there.
-    template = '''\
-tree %(TREE)s
-parent %(PARENT)s
-author %(USERNAME)s <%(EMAIL)s> %(TIME)s -0400
-committer %(USERNAME)s <%(EMAIL)s> %(TIME)s -0400
-
-%(MESSAGE)s
-''' % {
-        'TREE': tree_hash,
-        'TIME': '%(TIME)s',
-        'MESSAGE': msg,
-        'PARENT': parent_hash,
-        'USERNAME': username,
-        'EMAIL': email,
-    }
+    template = ''
+    template += 'tree %s\n' % tree_hash
+    if parent_hash is not None:
+        template += 'parent %s\n' % parent_hash
+    template += 'author %s <%s> %s -0400\n' % (username, email, '%(TIME)s')
+    template += 'committer %s <%s> %s -0400\n' % (username, email, '%(TIME)s')
+    template += '\n'
+    template += '%s\n' % msg
 
     start_time = int(time.time())
 
