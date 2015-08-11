@@ -96,8 +96,8 @@ committer %(USERNAME)s <%(EMAIL)s> %(TIME)s -0400
         for padding in white_noise_generator():
             # keep track of and print tries
             tries += 1
-            if tries % 100000 == 0:
-                print tries, 'tries'
+            if tries % 10000 == 0:
+                print tries, 'tries', '(%d%%)' % int(100.0 * tries / 16**len(hsh))
 
             # calculate sha
             header = 'commit %d\0' % len(content + padding)
