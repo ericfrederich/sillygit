@@ -96,7 +96,7 @@ def white_noise_generator(length=4, width=80):
             ret += '\n'
             yield ret
 
-def commit(git_dir, add, hsh, msg, n_procs):
+def commit(git_dir, add, hsh, msg, n_procs, start_time):
     print 'creating commit for'
     print '  ', git_dir
     print '  ', hsh
@@ -134,8 +134,6 @@ def commit(git_dir, add, hsh, msg, n_procs):
     template += 'committer %s <%s> %s -0400\n' % (username, email, '%(TIME)s')
     template += '\n'
     template += '%s\n' % msg
-
-    start_time = int(time.time())
 
     # create some queues for communication
     results_queue = multiprocessing.Queue()
@@ -192,6 +190,7 @@ def main():
     parser.add_argument('--message', '-m')
     parser.add_argument('--git-dir')
     parser.add_argument('--parallel', type=int, default=1)
+    parser.add_argument('--time', type=int, default=int(time.time()))
     parser.add_argument('hash')
     args = parser.parse_args()
     # if len(args.hash) > 4:
@@ -200,7 +199,7 @@ def main():
         int(args.hash, 16)
     except ValueError:
         raise ValueError('Invalid hex for hash')
-    commit(args.git_dir, args.add, args.hash.lower(), args.message, args.parallel)
+    commit(args.git_dir, args.add, args.hash.lower(), args.message, args.parallel, args.time)
 
 if __name__ == '__main__':
     main()
