@@ -64,20 +64,21 @@ committer Eric L Frederich <eric.frederich@gmail.com> %(TIME)s -0400
     before = datetime.now()
     while not found:
         time_delta += 1
+        content = TEMPLATE % {'TIME': start + time_delta}
         for n_padding_lines in range(5):
             for padding in itertools.product(*[range(80) for _ in range(n_padding_lines)]):
                 tries += 1
                 if tries % 100000 == 0:
                     print tries, 'tries'
-                content = TEMPLATE % {'TIME': start + time_delta}
 
+                padding_str = ''
                 for n in padding:
-                    content += '\n' + (' ' * n)
+                    padding_str += '\n' + (' ' * n)
 
-                content += '\n'
+                padding_str += '\n'
 
-                header = 'commit %d\0' % len(content)
-                store = header + content
+                header = 'commit %d\0' % len(content + padding_str)
+                store = header + content + padding_str
                 h = hashlib.sha1()
                 h.update(store)
                 sha = h.hexdigest()
@@ -99,7 +100,7 @@ committer Eric L Frederich <eric.frederich@gmail.com> %(TIME)s -0400
     print '%r tries per second' % (tries / (after - before).total_seconds())
     print 'had to increment commit time by', time_delta, 'seconds'
 
-    out, err, ret = run_command(['git', '--git-dir', git_dir, 'hash-object', '-t', 'commit', '-w', '--stdin'], stdin=content)
+    out, err, ret = run_command(['git', '--git-dir', git_dir, 'hash-object', '-t', 'commit', '-w', '--stdin'], stdin=content + padding_str)
     commit_hash = out.strip()
     if commit_hash == sha:
         print 'WOO HOO'
