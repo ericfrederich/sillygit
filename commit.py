@@ -27,7 +27,7 @@ def run_command(cmd, stdin=None, allowed_exit_codes=[0]):
         for line in err.splitlines():
             print '--- err:', line
         raise RuntimeError('Error running command %r' % cmd)
-    return out, err, ret
+    return out
 
 def white_noise_generator(length=4, width=80):
     for n_padding_lines in range(length+1):
@@ -48,20 +48,16 @@ def commit(git_dir, hsh, msg):
     if git_dir is not None:
         git_cmd.extend(['--git-dir', git_dir])
 
-    out, err, ret = run_command(git_cmd + ['config', 'user.name'])
-    username = out.strip()
+    username    = run_command(git_cmd + ['config', 'user.name']).rstrip()
+    email       = run_command(git_cmd + ['config', 'user.email']).rstrip()
+    tree_hash   = run_command(git_cmd + ['write-tree']).rstrip()
+    # TODO: could we support amend by parsing 'HEAD^' instead of 'HEAD'?
+    parent_hash = run_command(git_cmd + ['rev-parse', 'HEAD']).strip()
 
-    out, err, ret = run_command(git_cmd + ['config', 'user.email'])
-    email = out.strip()
-
-    out, err, ret = run_command(git_cmd + ['write-tree'])
-    tree_hash = out.strip()
-    print 'commit hash is', tree_hash
-
-    # TODO: could we support amend by parsing 'HEAD^' istead of 'HEAD'?
-    out, err, ret = run_command(git_cmd + ['rev-parse', 'HEAD'])
-    parent_hash = out.strip()
-    print 'parent hash is', parent_hash
+    print 'username   ', username
+    print 'email      ', email
+    print 'tree hash  ', tree_hash
+    print 'parent hash', parent_hash
 
     TEMPLATE='''\
 tree %(TREE)s
@@ -120,8 +116,7 @@ committer %(USERNAME)s <%(EMAIL)s> %(TIME)s -0400
     print '%r tries per second' % (tries / (after - before).total_seconds())
     print 'had to increment commit time by', time_delta, 'seconds'
 
-    out, err, ret = run_command(git_cmd + ['hash-object', '-t', 'commit', '-w', '--stdin'], stdin=content + padding)
-    commit_hash = out.strip()
+    commit_hash = run_command(git_cmd + ['hash-object', '-t', 'commit', '-w', '--stdin'], stdin=content + padding).strip()
     if commit_hash == sha:
         print 'WOO HOO'
     else:
