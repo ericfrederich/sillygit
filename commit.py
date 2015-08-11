@@ -61,7 +61,7 @@ def finder(results_queue, stats_queue, stop_queue, start_time, time_delta, templ
 def run_command(cmd, stdin=None, allowed_exit_codes=[0]):
     """
     wrapper around subprocess.Popen
-    returns stdout, stderr and the return code
+    returns stdout
     """
     if stdin:
         p = Popen(cmd, stdout=PIPE, stderr=PIPE, stdin=PIPE)
