@@ -29,6 +29,15 @@ def run_command(cmd, stdin=None, allowed_exit_codes=[0]):
         raise RuntimeError('Error running command %r' % cmd)
     return out, err, ret
 
+def white_noise_generator(length=4, width=80):
+    for n_padding_lines in range(length+1):
+        for padding in itertools.product(*[range(width) for _ in range(n_padding_lines)]):
+            ret = ''
+            for n in padding:
+                ret += '\n' + (' ' * n)
+            ret += '\n'
+            yield ret
+
 def commit(git_dir, hsh, msg):
     print 'creating commit for'
     print '  ', git_dir
@@ -63,30 +72,28 @@ committer Eric L Frederich <eric.frederich@gmail.com> %(TIME)s -0400
     tries = 0
     before = datetime.now()
     while not found:
+        # drift time as needed
+        # though this shouldn't happen too often since
+        # the inner loop generates 41,478,481 tries
         time_delta += 1
         content = TEMPLATE % {'TIME': start + time_delta}
-        for n_padding_lines in range(5):
-            for padding in itertools.product(*[range(80) for _ in range(n_padding_lines)]):
-                tries += 1
-                if tries % 100000 == 0:
-                    print tries, 'tries'
 
-                padding_str = ''
-                for n in padding:
-                    padding_str += '\n' + (' ' * n)
+        for padding in white_noise_generator():
+            # keep track of and print tries
+            tries += 1
+            if tries % 100000 == 0:
+                print tries, 'tries'
 
-                padding_str += '\n'
+            # calculate sha
+            header = 'commit %d\0' % len(content + padding)
+            store = header + content + padding
+            h = hashlib.sha1()
+            h.update(store)
+            sha = h.hexdigest()
 
-                header = 'commit %d\0' % len(content + padding_str)
-                store = header + content + padding_str
-                h = hashlib.sha1()
-                h.update(store)
-                sha = h.hexdigest()
-                # print 'would be', sha
-                if sha.endswith(hsh):
-                    found = True
-                    break
-            if found:
+            # break if we found one that ends with the desired hash
+            if sha.endswith(hsh):
+                found = True
                 break
 
 
@@ -100,7 +107,7 @@ committer Eric L Frederich <eric.frederich@gmail.com> %(TIME)s -0400
     print '%r tries per second' % (tries / (after - before).total_seconds())
     print 'had to increment commit time by', time_delta, 'seconds'
 
-    out, err, ret = run_command(['git', '--git-dir', git_dir, 'hash-object', '-t', 'commit', '-w', '--stdin'], stdin=content + padding_str)
+    out, err, ret = run_command(['git', '--git-dir', git_dir, 'hash-object', '-t', 'commit', '-w', '--stdin'], stdin=content + padding)
     commit_hash = out.strip()
     if commit_hash == sha:
         print 'WOO HOO'
