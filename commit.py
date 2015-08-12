@@ -96,7 +96,7 @@ def white_noise_generator(length=4, width=80):
             ret += '\n'
             yield ret
 
-def commit(git_dir, add, hsh, msg, n_procs, start_time):
+def commit(git_dir, add, hsh, msg, n_procs, start_time, amend):
     print 'creating commit for'
     print '  ', git_dir
     print '  ', hsh
@@ -116,7 +116,10 @@ def commit(git_dir, add, hsh, msg, n_procs, start_time):
     tree_hash   = run_command(git_cmd + ['write-tree']).rstrip()
     # TODO: could we support amend by parsing 'HEAD^' instead of 'HEAD'?
     try:
-        parent_hash = run_command(git_cmd + ['rev-parse', 'HEAD']).strip()
+        if amend:
+            parent_hash = run_command(git_cmd + ['rev-parse', 'HEAD^']).strip()
+        else:
+            parent_hash = run_command(git_cmd + ['rev-parse', 'HEAD']).strip()
     except RunCommandError as rce:
         parent_hash = None
 
@@ -157,7 +160,7 @@ def commit(git_dir, add, hsh, msg, n_procs, start_time):
     for i in range(n_procs):
         stop_queue.put(None)
 
-    # now everything on the results queue is just the number of tries from each process
+    # collect stats from each process
     # do a blocking call because we know how many processes there were
     tries = 0
     for i in range(n_procs):
@@ -187,6 +190,7 @@ def commit(git_dir, add, hsh, msg, n_procs, start_time):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--add', '-a', action='store_true')
+    parser.add_argument('--amend', action='store_true')
     parser.add_argument('--message', '-m')
     parser.add_argument('--git-dir')
     parser.add_argument('--parallel', type=int, default=1)
@@ -199,7 +203,7 @@ def main():
         int(args.hash, 16)
     except ValueError:
         raise ValueError('Invalid hex for hash')
-    commit(args.git_dir, args.add, args.hash.lower(), args.message, args.parallel, args.time)
+    commit(args.git_dir, args.add, args.hash.lower(), args.message, args.parallel, args.time, args.amend)
 
 if __name__ == '__main__':
     main()
