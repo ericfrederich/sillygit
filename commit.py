@@ -54,7 +54,7 @@ def finder(results_queue, stats_queue, stop_queue, start_time, time_delta, templ
             sha = h.hexdigest()
 
             # break if we found one that ends with the desired hash
-            if (start and sha.startswith(hsh)) or sha.endswith(hsh):
+            if (start and sha.startswith(hsh)) or (not start and sha.endswith(hsh)):
                 found = True
                 break
 
