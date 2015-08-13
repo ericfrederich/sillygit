@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-
+# PYTHON_ARGCOMPLETE_OK
 __author__ = 'Eric L. Frederich'
 
 from subprocess import Popen, PIPE
@@ -10,6 +10,11 @@ import itertools
 from datetime import datetime
 import multiprocessing
 import Queue
+try:
+    import argcomplete
+    HAS_ARGCOMPLETE=True
+except ImportError:
+    HAS_ARGCOMPLETE=False
 
 def finder(results_queue, stats_queue, stop_queue, start_time, time_delta, template, start, hsh):
     commit_time = start_time - time_delta
@@ -191,12 +196,14 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--add', '-a', action='store_true')
     parser.add_argument('--amend', action='store_true')
-    parser.add_argument('--message', '-m')
+    parser.add_argument('--message', '-m', required=True)
     parser.add_argument('--git-dir')
     parser.add_argument('--start', action='store_true')
     parser.add_argument('--parallel', type=int, default=1)
     parser.add_argument('--time', type=int, default=int(time.time()))
     parser.add_argument('hash')
+    if HAS_ARGCOMPLETE:
+        argcomplete.autocomplete(parser)
     args = parser.parse_args()
     # if len(args.hash) > 4:
     #     raise ValueError('hash too big, only 4 supported')
