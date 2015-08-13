@@ -11,7 +11,7 @@ from datetime import datetime
 import multiprocessing
 import Queue
 
-def finder(results_queue, stats_queue, stop_queue, start_time, time_delta, template, hsh):
+def finder(results_queue, stats_queue, stop_queue, start_time, time_delta, template, start, hsh):
     commit_time = start_time - time_delta
     found = False
     tries = 0
@@ -49,7 +49,7 @@ def finder(results_queue, stats_queue, stop_queue, start_time, time_delta, templ
             sha = h.hexdigest()
 
             # break if we found one that ends with the desired hash
-            if sha.endswith(hsh):
+            if (start and sha.startswith(hsh)) or sha.endswith(hsh):
                 found = True
                 break
 
@@ -96,7 +96,7 @@ def white_noise_generator(length=4, width=80):
             ret += '\n'
             yield ret
 
-def commit(git_dir, add, hsh, msg, n_procs, start_time, amend):
+def commit(git_dir, add, hsh, msg, n_procs, start_time, amend, start):
     print 'creating commit for'
     print '  ', git_dir
     print '  ', hsh
@@ -146,7 +146,7 @@ def commit(git_dir, add, hsh, msg, n_procs, start_time, amend):
     # create all the processes using an offset for the start time so they're unique
     procs = []
     for i in range(n_procs):
-        proc = multiprocessing.Process(target=finder, args=(results_queue, stats_queue, stop_queue, start_time + i, n_procs, template, hsh))
+        proc = multiprocessing.Process(target=finder, args=(results_queue, stats_queue, stop_queue, start_time + i, n_procs, template, start, hsh))
         procs.append(proc)
 
     # start all processes
@@ -193,6 +193,7 @@ def main():
     parser.add_argument('--amend', action='store_true')
     parser.add_argument('--message', '-m')
     parser.add_argument('--git-dir')
+    parser.add_argument('--start', action='store_true')
     parser.add_argument('--parallel', type=int, default=1)
     parser.add_argument('--time', type=int, default=int(time.time()))
     parser.add_argument('hash')
@@ -203,7 +204,7 @@ def main():
         int(args.hash, 16)
     except ValueError:
         raise ValueError('Invalid hex for hash')
-    commit(args.git_dir, args.add, args.hash.lower(), args.message, args.parallel, args.time, args.amend)
+    commit(args.git_dir, args.add, args.hash.lower(), args.message, args.parallel, args.time, args.amend, args.start)
 
 if __name__ == '__main__':
     main()
