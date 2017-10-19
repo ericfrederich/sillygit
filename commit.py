@@ -92,8 +92,12 @@ def run_command(cmd, stdin=None, allowed_exit_codes=[0]):
         raise RunCommandError(cmd, out, err, ret)
     return out
 
-def white_noise_generator(length=4, width=80):
-    for n_padding_lines in range(length+1):
+def white_noise_generator(length=-1, width=80):
+    if length == -1:
+        r = itertools.count()
+    else:
+        r = range(length + 1)
+    for n_padding_lines in r:
         for padding in itertools.product(*[range(width) for _ in range(n_padding_lines)]):
             ret = ''
             for n in padding:
@@ -199,7 +203,6 @@ def main():
     parser.add_argument('--message', '-m', required=True)
     parser.add_argument('--git-dir')
     parser.add_argument('--start', action='store_true')
-    parser.add_argument('--parallel', type=int, default=1)
     parser.add_argument('--time', type=int, default=407891580)
     parser.add_argument('hash')
     if HAS_ARGCOMPLETE:
@@ -211,7 +214,7 @@ def main():
         int(args.hash, 16)
     except ValueError:
         raise ValueError('Invalid hex for hash')
-    commit(args.git_dir, args.add, args.hash.lower(), args.message, args.parallel, args.time, args.amend, args.start)
+    commit(args.git_dir, args.add, args.hash.lower(), args.message, 1, args.time, args.amend, args.start)
 
 if __name__ == '__main__':
     main()
