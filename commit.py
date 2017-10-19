@@ -138,8 +138,8 @@ def commit(git_dir, add, hsh, msg, n_procs, start_time, amend, start):
     template += 'tree %s\n' % tree_hash
     if parent_hash is not None:
         template += 'parent %s\n' % parent_hash
-    template += 'author %s <%s> %s -0400\n' % (username, email, '%(TIME)s')
-    template += 'committer %s <%s> %s -0400\n' % (username, email, '%(TIME)s')
+    template += 'author %s <%s> %s -0600\n' % (username, email, '%(TIME)s')
+    template += 'committer %s <%s> %s -0600\n' % (username, email, '%(TIME)s')
     template += '\n'
     template += '%s\n' % msg
 
@@ -200,7 +200,7 @@ def main():
     parser.add_argument('--git-dir')
     parser.add_argument('--start', action='store_true')
     parser.add_argument('--parallel', type=int, default=1)
-    parser.add_argument('--time', type=int, default=int(time.time()))
+    parser.add_argument('--time', type=int, default=407891580)
     parser.add_argument('hash')
     if HAS_ARGCOMPLETE:
         argcomplete.autocomplete(parser)
