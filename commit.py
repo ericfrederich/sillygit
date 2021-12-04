@@ -16,47 +16,42 @@ try:
 except ImportError:
     HAS_ARGCOMPLETE=False
 
-def finder(results_queue, stats_queue, stop_queue, start_time, time_delta, template, start, hsh):
-    commit_time = start_time - time_delta
+def finder(results_queue, stats_queue, stop_queue, start_time, start_lines, step, template, start, hsh):
+    commit_time = start_time
     found = False
     tries = 0
     before = datetime.now()
-    while not found:
-        # drift time as needed
-        # though this shouldn't happen too often since
-        # the inner loop generates 41,478,481 tries
-        commit_time += time_delta
-        content = template % {'TIME': commit_time}
+    content = template % {'TIME': commit_time}
 
-        print 'trying with time', commit_time
+    # print 'trying with time', commit_time
 
-        for padding in white_noise_generator():
-            # keep track of and print tries
-            tries += 1
+    for padding in white_noise_generator(start_lines, step):
+        # keep track of and print tries
+        tries += 1
 
-            if tries % 10000 == 0:
-                try:
-                    stop_queue.get_nowait()
-                except Queue.Empty:
-                    pass
-                else:
-                    print 'got the stop signal'
-                    stats_queue.put(tries)
+        if tries % 100000 == 0:
+            try:
+                stop_queue.get_nowait()
+            except Queue.Empty:
+                pass
+            else:
+                print 'got the stop signal'
+                stats_queue.put(tries)
 
-            # if tries % 10000 == 0:
-            #     print tries, 'tries', '(%d%%)' % int(100.0 * tries / 16**len(hsh))
+        # if tries % 10000 == 0:
+        #     print tries, 'tries', '(%d%%)' % int(100.0 * tries / 16**len(hsh))
 
-            # calculate sha
-            header = 'commit %d\0' % len(content + padding)
-            store = header + content + padding
-            h = hashlib.sha1()
-            h.update(store)
-            sha = h.hexdigest()
+        # calculate sha
+        header = 'commit %d\0' % len(content + padding)
+        store = header + content + padding
+        h = hashlib.sha1()
+        h.update(store)
+        sha = h.hexdigest()
 
-            # break if we found one that ends with the desired hash
-            if (start and sha.startswith(hsh)) or (not start and sha.endswith(hsh)):
-                found = True
-                break
+        # break if we found one that ends with the desired hash
+        if (start and sha.startswith(hsh)) or (not start and sha.endswith(hsh)):
+            found = True
+            break
 
     after = datetime.now()
 
@@ -92,8 +87,9 @@ def run_command(cmd, stdin=None, allowed_exit_codes=[0]):
         raise RunCommandError(cmd, out, err, ret)
     return out
 
-def white_noise_generator(length=4, width=80):
-    for n_padding_lines in range(length+1):
+def white_noise_generator(start, step, width=80):
+    for n_padding_lines in itertools.count(start, step):
+        print(start, 'is now using', n_padding_lines, 'lines')
         for padding in itertools.product(*[range(width) for _ in range(n_padding_lines)]):
             ret = ''
             for n in padding:
@@ -138,8 +134,8 @@ def commit(git_dir, add, hsh, msg, n_procs, start_time, amend, start):
     template += 'tree %s\n' % tree_hash
     if parent_hash is not None:
         template += 'parent %s\n' % parent_hash
-    template += 'author %s <%s> %s -0400\n' % (username, email, '%(TIME)s')
-    template += 'committer %s <%s> %s -0400\n' % (username, email, '%(TIME)s')
+    template += 'author %s <%s> %s -0600\n' % (username, email, '%(TIME)s')
+    template += 'committer %s <%s> %s -0600\n' % (username, email, '%(TIME)s')
     template += '\n'
     template += '%s\n' % msg
 
@@ -151,7 +147,7 @@ def commit(git_dir, add, hsh, msg, n_procs, start_time, amend, start):
     # create all the processes using an offset for the start time so they're unique
     procs = []
     for i in range(n_procs):
-        proc = multiprocessing.Process(target=finder, args=(results_queue, stats_queue, stop_queue, start_time + i, n_procs, template, start, hsh))
+        proc = multiprocessing.Process(target=finder, args=(results_queue, stats_queue, stop_queue, start_time, i, n_procs, template, start, hsh))
         procs.append(proc)
 
     # start all processes
