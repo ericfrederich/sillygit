@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # PYTHON_ARGCOMPLETE_OK
 __author__ = 'Eric L. Frederich'
 
@@ -9,7 +9,7 @@ import hashlib
 import itertools
 from datetime import datetime
 import multiprocessing
-import Queue
+import queue
 try:
     import argcomplete
     HAS_ARGCOMPLETE=True
@@ -23,7 +23,7 @@ def finder(results_queue, stats_queue, stop_queue, start_time, start_lines, step
     before = datetime.now()
     content = template % {'TIME': commit_time}
 
-    # print 'trying with time', commit_time
+    # print('trying with time', commit_time)
 
     for padding in white_noise_generator(start_lines, step):
         # keep track of and print tries
@@ -32,10 +32,10 @@ def finder(results_queue, stats_queue, stop_queue, start_time, start_lines, step
         if tries % 100000 == 0:
             try:
                 stop_queue.get_nowait()
-            except Queue.Empty:
+            except queue.Empty:
                 pass
             else:
-                print 'got the stop signal'
+                print('got the stop signal')
                 stats_queue.put(tries)
 
         # if tries % 10000 == 0:
@@ -45,7 +45,7 @@ def finder(results_queue, stats_queue, stop_queue, start_time, start_lines, step
         header = 'commit %d\0' % len(content + padding)
         store = header + content + padding
         h = hashlib.sha1()
-        h.update(store)
+        h.update(store.encode("utf-8"))
         sha = h.hexdigest()
 
         # break if we found one that ends with the desired hash
@@ -71,19 +71,21 @@ def run_command(cmd, stdin=None, allowed_exit_codes=[0]):
     returns stdout
     """
     if stdin:
-        p = Popen(cmd, stdout=PIPE, stderr=PIPE, stdin=PIPE)
+        p = Popen(cmd, stdout=PIPE, stderr=PIPE, stdin=PIPE, text=True)
         p.stdin.write(stdin)
     else:
-        p = Popen(cmd, stdout=PIPE, stderr=PIPE)
+        p = Popen(cmd, stdout=PIPE, stderr=PIPE, text=True)
+    
+    print("?" * 80)
 
     out, err = p.communicate()
     ret = p.wait()
     if allowed_exit_codes is not None and ret not in allowed_exit_codes:
-        print '--- return code:', ret
+        print('--- return code:', ret)
         for line in out.splitlines():
-            print '--- out:', line
+            print('--- out:', line)
         for line in err.splitlines():
-            print '--- err:', line
+            print('--- err:', line)
         raise RunCommandError(cmd, out, err, ret)
     return out
 
@@ -98,10 +100,10 @@ def white_noise_generator(start, step, width=80):
             yield ret
 
 def commit(git_dir, add, hsh, msg, n_procs, start_time, amend, start):
-    print 'creating commit for'
-    print '  ', git_dir
-    print '  ', hsh
-    print '  ', msg
+    print('creating commit for')
+    print('  ', git_dir)
+    print('  ', hsh)
+    print('  ', msg)
 
     git_cmd = ['git']
     if git_dir is not None:
@@ -124,10 +126,10 @@ def commit(git_dir, add, hsh, msg, n_procs, start_time, amend, start):
     except RunCommandError as rce:
         parent_hash = None
 
-    print 'username   ', username
-    print 'email      ', email
-    print 'tree hash  ', tree_hash
-    print 'parent hash', parent_hash
+    print(f'username    {username}')
+    print(f'email       {email}')
+    print(f'tree hash   {tree_hash}')
+    print(f'parent hash {parent_hash}')
 
     # a partially applied template; leave %(TIME)s in there.
     template = ''
@@ -171,18 +173,18 @@ def commit(git_dir, add, hsh, msg, n_procs, start_time, amend, start):
     for proc in procs:
         proc.terminate()
 
-    print '*' * 80
-    print sha
-    print repr(store)
-    print '*' * 80
-    print 'elapsed:', runtime
-    print 'tries  :', tries
-    print '%r tries per second' % (tries / runtime.total_seconds())
-    print 'had to increment commit time by', commit_time - start_time, 'seconds'
+    print('*' * 80)
+    print(sha)
+    print(repr(store))
+    print('*' * 80)
+    print('elapsed:', runtime)
+    print('tries  :', tries)
+    print('%r tries per second' % (tries / runtime.total_seconds()))
+    print('had to increment commit time by', commit_time - start_time, 'seconds')
 
     commit_hash = run_command(git_cmd + ['hash-object', '-t', 'commit', '-w', '--stdin'], stdin=content).strip()
     if commit_hash == sha:
-        print 'WOO HOO'
+        print('WOO HOO')
     else:
         raise RuntimeError('unexpected hash')
 
