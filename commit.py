@@ -198,7 +198,7 @@ def main():
     parser.add_argument('--git-dir')
     parser.add_argument('--start', action='store_true')
     parser.add_argument('--parallel', type=int, default=1)
-    parser.add_argument('--time', type=int, default=int(time.time()))
+    parser.add_argument('--time', type=int, default=407891580)
     parser.add_argument('hash')
     if HAS_ARGCOMPLETE:
         argcomplete.autocomplete(parser)
